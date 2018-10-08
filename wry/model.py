@@ -202,3 +202,114 @@ class Lowess(LinearRegression):
         self.resid = residuals
         self.yest = yest
         self.smear = smear
+
+
+class WRTDS(Lowess):
+    """Weighted Regression on Time Discharge and Season.
+
+    Warning: Not yet implemented.
+    """
+    def __init__(self):
+        raise NotImplementedError()
+
+
+    def fit(self, dataframe,
+            constituent,
+            surrogates,
+            time_step=1/365.5,
+            surrogate_hw =3.0, #2.0 orig
+            seasonal_hw = 1, #0.5 orig
+            trend_hw = 7.0):
+        """ Initialize a WRSST model
+
+        Parameters
+        ----------
+        dataframe : DataFrame
+        time_step : float
+        surrogate_hw : float
+        seasonal_hw : float
+        trend_hw : float
+        """
+        self.seasonal_halfwidth = seasonal_hw
+        self.surrogate_halfwidth = surrogate_hw
+        self.trend_halfwidth = trend_hw
+        self.time_step = time_step
+
+        self._halfwidth_matrix = np.array([])
+
+
+    def predict(self):
+        pass
+
+
+    def _sample_weights(self, design_vector, design_matrix):
+        """Calculate sample weights for WRTDS
+
+        Parameters
+        ----------
+        design_vector : array
+            Array containing explantory variables at current observations
+
+        design_matrix : array
+            Array containing all
+
+        Returns
+        -------
+        An array containing the weights of each sample relative to the observations
+        """
+        sample_distance = self.distance(design_matrix, design_vector)
+        sample_weight = self.tricubic_weight(sample_distance,
+                                            self.halfwidth_vector)
+
+        return sample_weight
+
+
+    @property
+    def halfwidth_vector(self):
+        """
+        Halfway translated
+        """
+        if self._halfwidth_matrix.size > 0:
+            halfwidth_matrix = self._halfwidth_matrix
+
+        else:
+            halfwidth_matrix = np.empty(self.input_data.surrogate_count + 3)
+            halfwidth_matrix[:-3] = self.surrogate_halfwidth
+            halfwidth_matrix[-1] = self.trend_halfwidth
+            halfwidth_matrix[-2] = self.seasonal_halfwidth
+            halfwidth_matrix[-3] = self.seasonal_halfwidth
+            self._halfwidth_vector = halfwidth_vector
+
+        return halfwidth_vector
+
+
+    @staticmethod
+    def distance(array_1, array_2):
+        """ L1 distance between two arrays.
+        """
+        return np.abs(array_1 - array_2)
+
+
+    @staticmethod
+    def tricubic_weight(distance, halfwidth_window):
+        """ Tricube weight function (Tukey, 1977).
+
+        Parameters
+        ----------
+        distance : array
+
+        halfwidth_window : array
+
+        Returns
+        -------
+        An array of weights.
+        """
+        x = np.divide(distance, halfwidth_window,
+                      out=np.zeros_like(distance),
+                      where=halfwidth_window!=0)
+
+        weights = (1 - x**3)**3
+
+        weights =  np.where(distance <= halfwidth_window, weights, 0)
+
+        return np.prod(weights, axis=1)
