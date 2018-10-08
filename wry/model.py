@@ -70,6 +70,20 @@ class LinearRegression(skLinearRegression):
     From the implementation point of view, this is just plain Ordinary
     Least Squares (scipy.linalg.lstsq) wrapped as a predictor object.
     """
+    def fit(self, x, y, sample_weight):
+        """Fit data with OLS
+
+        This fit method overides the implementation from sklearn, and
+        handles simultaneous weighted regressions for Lowess-type
+        regressions.
+        """
+        weights = sample_weight
+        b = np.array([np.sum(weights * y), np.sum(weights * y * x)])
+        A = np.array([[np.sum(weights), np.sum(weights * x)],
+                      [np.sum(weights * x), np.sum(weights * x * x)]])
+        beta = linalg.solve(A, b)
+        self.coef_ = beta
+
 
     @property
     def score(self):
