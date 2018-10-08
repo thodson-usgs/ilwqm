@@ -165,3 +165,12 @@ class Lowess(LinearRegression):
         self.resid = residuals
         self.yest = yest
         self.smear = smear
+
+
+class Loadest(Lowess):
+    """Loadest Regression Model.
+
+    Warning: Not yet implemented.
+    """
+    def __init__(self):
+        raise NotImplementedError()
