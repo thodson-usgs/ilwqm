@@ -70,12 +70,40 @@ class LinearRegression(skLinearRegression):
     From the implementation point of view, this is just plain Ordinary
     Least Squares (scipy.linalg.lstsq) wrapped as a predictor object.
     """
+    def fit(self, x, y, sample_weight=None):
+        super().fit(x, y, sample_weight=sample_weight)
+        self._n = x.shape[0]
+        self._p =  x.shape[1]
+        self.yest = self.predict(x)
+        self.resid = y - self.yest
 
     @property
-    def score(self):
-        """Pearson correlation coefficient (R^2).
+    def rss(self):
+        """Residual Sum of Squares.
         """
-        return r2_score(self.resid + self.yest, self.yest)
+        y = self.resid + self.yest
+        return np.sum( (y-y.est)**2 )
+
+    @property
+    def tss(self):
+        """Total Sum of Squares.
+        """
+        y = self.resid + self.yest
+        return np.sum( (y-y.mean())**2 )
+
+    @property
+    def r2(self):
+        """Coefficient of determination (R^2).
+        """
+        return 1 - self.rss/self.tss
+        #return r2_score(self.resid + self.yest, self.yest)
+
+    @property
+    def adjusted_r2(self):
+        """ Adjusted coefficient of determination.
+        """
+        return 1 - (1-self.r2)*(self._n-1)/(self._n-self._p-1)
+
 
     @staticmethod
     def _duan_smearing_coef(residuals, weights=1):
@@ -122,7 +150,7 @@ class Lowess(LinearRegression):
     def predict(self):
         raise NotImplementedError('This feature may be implemented in future')
 
-    def fit(self, x, y, f=0.75, iter=1, n_jobs=None):
+    def fit(self, x, y, f=0.75, iter=1):
         """ Fit lowess model.
 
         Parameters
