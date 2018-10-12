@@ -204,7 +204,7 @@ class Lowess(LinearRegression):
         self.smear = smear
 
 
-class WRTDS(Lowess):
+class WRTDS(LinearRegression):
     """Weighted Regression on Time Discharge and Season.
 
     Warning: Not yet implemented.
@@ -213,33 +213,66 @@ class WRTDS(Lowess):
         raise NotImplementedError()
 
 
-    def fit(self, dataframe,
-            constituent,
-            surrogates,
-            time_step=1/365.5,
-            surrogate_hw =3.0, #2.0 orig
-            seasonal_hw = 1, #0.5 orig
-            trend_hw = 7.0):
-        """ Initialize a WRSST model
+    def fit(self, x, y,
+            halfwidths,
+            time_step=1/365.5):
+            #surrogate_hw =3.0, #2.0 orig
+            #seasonal_hw = 1, #0.5 orig
+            #trend_hw = 7.0):
+        """ Fit a WRTDS model
+
+        Use halfwidths
 
         Parameters
         ----------
-        dataframe : DataFrame
+        x : array_like
+            Training data.
+        
+        y : array_like
+            Target data.
+        
+        halfwidths : array_like
+            Half widths for weighting data.
+
         time_step : float
-        surrogate_hw : float
-        seasonal_hw : float
-        trend_hw : float
         """
-        self.seasonal_halfwidth = seasonal_hw
-        self.surrogate_halfwidth = surrogate_hw
-        self.trend_halfwidth = trend_hw
+        self.training_data = x
+        self.target_data = y
+        self.halfwidths = halfwidths
         self.time_step = time_step
 
-        self._halfwidth_matrix = np.array([])
+            weights = self._sample_weights(self.
+            super().fit(x, y, sample_weight=weights.flatten())
+            yest_local = super().predict(x)
+            yest[i] = yest_local[i]
+            smear[i] = self._duan_smearing_coef(y-yest_local, weights)
+
+        residuals = y - yest
+        s = np.median(np.abs(residuals))
+
+        self.resid = residuals
+        self.yest = yest
+        self.smear = smear
 
 
-    def predict(self):
-        pass
+    def predict(self, X):
+        """Predict using WRTDS
+
+        Parameters
+        ----------
+        X : array_like, shape (n_samples, n_features)
+            Samples.
+        """
+        n = X.shape[0]
+        yest = np.zeros([n,1])
+        smear = np.zeros([n,1])
+
+        for i in range(n):
+            weights = self._sample_weights(X[n], self.training_data)
+            super().fit(self.training_data, self.target_data, sample_weight=weights)
+            yest_local = super().predict(X[i])
+            smear = self. XXXX
+            yest[i] = smear*np.exp(yest_local)
 
 
     def _sample_weights(self, design_vector, design_matrix):
@@ -259,28 +292,9 @@ class WRTDS(Lowess):
         """
         sample_distance = self.distance(design_matrix, design_vector)
         sample_weight = self.tricubic_weight(sample_distance,
-                                            self.halfwidth_vector)
+                                            self.halfwidths)
 
         return sample_weight
-
-
-    @property
-    def halfwidth_vector(self):
-        """
-        Halfway translated
-        """
-        if self._halfwidth_matrix.size > 0:
-            halfwidth_matrix = self._halfwidth_matrix
-
-        else:
-            halfwidth_matrix = np.empty(self.input_data.surrogate_count + 3)
-            halfwidth_matrix[:-3] = self.surrogate_halfwidth
-            halfwidth_matrix[-1] = self.trend_halfwidth
-            halfwidth_matrix[-2] = self.seasonal_halfwidth
-            halfwidth_matrix[-3] = self.seasonal_halfwidth
-            self._halfwidth_vector = halfwidth_vector
-
-        return halfwidth_vector
 
 
     @staticmethod
