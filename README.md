@@ -1,2 +1,2 @@
-# wry
-weighted regressions for hydrology
+# libmod
+Lasso-Impute-Bootstrap Model
