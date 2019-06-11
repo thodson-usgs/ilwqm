@@ -1,44 +1,91 @@
 import pandas as pd
 import numpy as np
 
-from sklearn.linear_model import LassoCV
+from sklearn.linear_model import BayesianRidge, LinearRegression
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 
 #TODO import block bootstrap
 
-class LassoImputeBootstrap:
+class Model:
     """
+    Assumes data are Missing at Random (MAR) -- missingness only depends on
+    observed variables, not unobserved variables.
+
+    Attributes
+    ----------
+    bcf : bool
+        Whether to apply a bias correction factor to output
     """
 
-    def __init__(sur_df, con_df, bcf=True):
+    def __init__(self, df, target,
+                 estimator=BayesianRidge(),
+                 missing_values=np.nan,
+                 max_iter=10,
+                 tol=1e-3,
+                 n_jobs=None,
+                 seed = 23412,
+                ):
         """
+        Parameters
+        ---------
+        df : DataFrame
+        target :  str
+
         """
-        # merge df
+        self.data = df
+        self.target = target
+        self.bcf = bcf
 
-        # get only complete samples
+        self.n_jobs = n_jobs
 
-        # begin lasso cross-validation
-        reg = LassoCV(cv=5, random_state=0).fit(X,y)
+        self._imputer_kwargs = {
+            estimator : estimator,
+            missing_values : missing_values,
+            max_iter : max_iter,
+            tol : tol,
+            sample_posterior : True,
+        }
 
-        # save positive regression coefficients
+    def fit(self, n=0):
+        """
+        Parameters
+        ----------
+        n : int
+            Number of block bootstrap replicates
+        """
+        imp = IterativeImputer(**self.imp,
+                               random_state=None)
+        col = 1
+        rows = self.data.shape[0]
+        temp = imp(self.data)
+        self.result = temp[:,col]
 
+        self.bs_result = np.zeros([rows, n])
+
+        for i in range(n):
+            imp = IterativeImputer(**self.imp,
+                                   random_state=
+            # get block bootstrap sample
+
+            # create temp dataset including sample
+
+            # impute the result
+            self.bs_result[:,n] = self.imp(bbs_sample[col])
+
+
+
+    def bcf(self):
+        """
+        Attribute
+        """
         pass
 
-    def fit():
-        """
-        """
-        pass
-        imp = IterativeImputer(max_iter=10, random_state=0)
+    def predict(self):
+        # transform results
+        return  0
 
-    def transform():
-
-    def boot_fit(n):
-        """
-        """
-        pass
-
-    def plot():
+    def plot(self):
         """
         """
         pass
