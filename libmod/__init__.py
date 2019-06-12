@@ -65,10 +65,9 @@ class Model:
             'sample_posterior' : True,
         }
 
-        self.observed_index = self.data[self.target].isna()
+        self.observed_index = ~self.data[self.target].isna()
         self._observed_data = self.data[self.observed_index]
         self._unobserved_data = self.data[~self.observed_index]
-
         self._bbootstrap = BBS(self.data[self.observed_index],
                                block_length=block_length)
 
@@ -100,34 +99,29 @@ class Model:
         n : int
             Number of block bootstrap replicates
         """
-        if seed is not None:
-            # add a large constitent, so incrementing seed +1 will work.
-            seed = seed + 1234567
-
-
         imp = IterativeImputer(**self._imputer_kwargs,
                                random_state=None)
         rows = self.data.shape[0]
         temp = imp.fit_transform(self.data)
-        self.result = temp[:,self.target_col]
+        self.result = temp[:,self.target_col].ravel()
 
         if n != 0:
             self.boot_result = np.zeros([rows, n])
 
         for i in range(n):
-            random_state = seed + n
+            random_state = 1234567 + i
 
             imp = IterativeImputer(**self._imputer_kwargs,
                                    random_state=random_state)
 
             # get block bootstrap sample
-            boot_sample = bbs_replicate(seed=random_state)
+            boot_sample = self.bbs_replicate(seed=random_state)
 
             # create temp dataset including sample
             imputed_sample = imp.fit_transform(boot_sample)
 
             # impute the result
-            self.boot_result[:,n] = imputed_sample[:,self.target_col]
+            self.boot_result[:,i] = imputed_sample[:,self.target_col].ravel()
 
 
     def predict(self):
