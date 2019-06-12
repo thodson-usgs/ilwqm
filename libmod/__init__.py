@@ -29,8 +29,6 @@ class Model:
 
     Attributes
     ----------
-    bcf : bool
-        Whether to apply a bias correction factor to output
 
     """
 
@@ -56,16 +54,15 @@ class Model:
         self.data = df
         self.target = target
         self.target_col = self.data.columns == self.target
-        self.bcf = bcf
 
         self.n_jobs = n_jobs
 
         self._imputer_kwargs = {
-            estimator : estimator,
-            missing_values : missing_values,
-            max_iter : max_iter,
-            tol : tol,
-            sample_posterior : True,
+            'estimator' : estimator,
+            'missing_values' : missing_values,
+            'max_iter' : max_iter,
+            'tol' : tol,
+            'sample_posterior' : True,
         }
 
         self.observed_index = self.data[self.target].isna()
@@ -105,15 +102,14 @@ class Model:
         """
         if seed is not None:
             # add a large constitent, so incrementing seed +1 will work.
-            seed = seed + 1234567:
+            seed = seed + 1234567
 
 
         imp = IterativeImputer(**self._imputer_kwargs,
                                random_state=None)
-        col = 1
         rows = self.data.shape[0]
-        temp = imp(self.data)
-        self.result = temp[:,col]
+        temp = imp.fit_transform(self.data)
+        self.result = temp[:,self.target_col]
 
         if n != 0:
             self.boot_result = np.zeros([rows, n])
