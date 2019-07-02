@@ -16,7 +16,10 @@ Is smearing necessarying when backtransforming log-transformed data, if the impu
 import pandas as pd
 import numpy as np
 
+from pandas import DatetimeIndex
+
 from sklearn.linear_model import BayesianRidge
+from sklearn.linear_model import LassoCV
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 
@@ -36,12 +39,14 @@ class Model:
 
     def __init__(self, df, target,
                  block_length=100,
-                 estimator=BayesianRidge(),
                  missing_values=np.nan,
                  max_iter=10,
                  tol=1e-3,
                  n_jobs=None,
                  seed = 23412,
+                 block_length=100,
+                 imputer_model=BayesianRidge(),
+                 prediction_model=None
                 ):
         """
         Parameters
@@ -55,10 +60,19 @@ class Model:
         """
         self.data = df
         self.target = target
-        self.target_col = self.data.columns == self.target
-        self.bcf = bcf
-
+        self.block_length = block_length
+        #self.target_col = self.data.columns == self.target
+        #self.bcf = bcf
         self.n_jobs = n_jobs
+
+        if prediction_model is None:
+            self._predicter = LassoCV(n_jobs=n_jobs, cv=5, normalize=True)
+
+        if imputer_model is None:
+            self._imputer = BayesianRidge()
+
+        if self.n_jobs:
+            raise TypeError('n_jobs not implemented')
 
         self._imputer_kwargs = {
             estimator : estimator,
@@ -69,11 +83,45 @@ class Model:
         }
 
         self.observed_index = self.data[self.target].isna()
-        self._observed_data = self.data[self.observed_index]
-        self._unobserved_data = self.data[~self.observed_index]
+        #self._observed_data = self.data[self.observed_index]
+        #self._unobserved_data = self.data[~self.observed_index]
 
-        self._bbootstrap = BBS(self.data[self.observed_index],
-                               block_length=block_length)
+        #self._bbootstrap = BBS(self.data[self.observed_index],
+        #                       block_length=block_length)
+
+
+    def predict(self, imputer_seed=None, bootstrap_seed=None):
+        # impute the data
+        imp = IterativeImputer(**self._imputer_kwargs,
+                               random_state=imputer_seed)
+
+        data_m = imp.fit_transform(self.transformed_data())
+
+        # resample the data
+        samples_m = data_m[self.observed_index]
+        bbs = BBS(samples_m, block_length=100, freq='D')
+        samples_mb = bbs.sample(seed=bootstrap_seed)
+
+        # fit a model to the resampled data
+
+        # predict results from the fitted model
+        observations_m = data_m.loc[:, data_m.columns != self.target]
+
+
+    def _test_input(self):
+        assert isinstance(self.data.index, DatetimeIndex), "Data must have a datetime index"
+
+
+    def transformed_data(self):
+        """ Log transform input data and add seasonal columns
+        """
+        data = self.data.copy()
+        data = np.log(data)
+        data['t'] = data.index.to_julian_date() / 365.25 #days per year
+        data['cost'] = 2 * np.pi * np.cos(data['t'])
+        data['sint'] = 2 * np.pi * np.sin(data['t'])
+
+        return data
 
 
     def bbs_replicate(self, seed=None):
@@ -109,7 +157,7 @@ class Model:
 
 
         imp = IterativeImputer(**self._imputer_kwargs,
-                               random_state=None)
+                               random_state=seed)
         col = 1
         rows = self.data.shape[0]
         temp = imp(self.data)
@@ -133,9 +181,6 @@ class Model:
             # impute the result
             self.boot_result[:,n] = imputed_sample[:,self.target_col]
 
-
-    def predict(self):
-        return  0
 
     def plot(self):
         """
